@@ -35,6 +35,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <map>
 
 namespace android {
     class Fence;
@@ -352,7 +353,7 @@ private:
     bool mIsConnected;
     bool mIsVirtual;
     std::unordered_map<hwc2_layer_t, std::weak_ptr<Layer>> mLayers;
-    std::unordered_map<hwc2_config_t, std::shared_ptr<const Config>> mConfigs;
+    std::map<hwc2_config_t, std::shared_ptr<const Config>> mConfigs;
 };
 
 class Layer

@@ -18,6 +18,14 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 //#define LOG_NDEBUG 0
 
+#define GL_GLEXT_PROTOTYPES
+#define EGL_EGLEXT_PROTOTYPES
+
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
 #include <android/native_window.h>
 
 #include <binder/Parcel.h>
@@ -431,7 +439,27 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     Rect crop(Rect::EMPTY_RECT);
     mCrop.intersect(Rect(buffer->width, buffer->height), &crop);
 
+    EGLDisplay dpy = eglGetCurrentDisplay();
+    EGLSyncKHR sync = eglCreateSyncKHR(dpy,
+                    EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
+    if (sync == EGL_NO_SYNC_KHR) {
+       ALOGE("syncForReleaseLocked: error creating EGL fence: %#x",
+                        eglGetError());
+       return UNKNOWN_ERROR;
+    }
+    glFlush();
+    fenceFd = eglDupNativeFenceFDANDROID(dpy, sync);
+
+    eglDestroySyncKHR(dpy, sync);
+    if (fenceFd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
+       ALOGE("syncForReleaseLocked: error dup'ing native fence "
+                       "fd: %#x", eglGetError());
+       return UNKNOWN_ERROR;
+    }
+
+    ALOGV("Surface: queueBuffer - received fenceFd = %d", fenceFd);
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
+
     IGraphicBufferProducer::QueueBufferOutput output;
     IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
             mDataSpace, crop, mScalingMode, mTransform ^ mStickyTransform,

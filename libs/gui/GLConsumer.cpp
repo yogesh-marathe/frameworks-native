@@ -381,6 +381,14 @@ status_t GLConsumer::acquireBufferLocked(BufferItem *item,
         mEglSlots[slot].mEglImage = new EglImage(item->mGraphicBuffer);
     }
 
+    if (item->mFence->isValid()) {
+        err = item->mFence->waitForever("GLConsumer: acquireBufferLocked");
+        if (err != NO_ERROR) {
+           GLC_LOGE("acquireBufferLocked: error waiting for fence: %d", err);
+             return err;
+        }
+    }
+
     return NO_ERROR;
 }
 
